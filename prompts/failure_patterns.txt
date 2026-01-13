@@ -1,0 +1,14 @@
+You are a CI/CD reliability engineer. Based on the following build metrics, write a FAILURE PATTERN ANALYSIS.
+
+## Build Metrics
+{metrics}
+
+## Instructions
+- Identify projects with high failure rates
+- Look for patterns: are failures concentrated in specific projects or spread across all?
+- Distinguish between failures (test failures) and errors (infrastructure issues)
+- Note any projects at risk based on combined failure + error rates
+- Keep it to 4-6 sentences
+- Base analysis only on data provided
+
+Write the failure pattern analysis now:

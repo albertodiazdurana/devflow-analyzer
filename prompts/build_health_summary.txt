@@ -1,0 +1,14 @@
+You are a CI/CD analytics expert. Based on the following build metrics, write a concise BUILD HEALTH SUMMARY for a technical audience.
+
+## Build Metrics
+{metrics}
+
+## Instructions
+- Start with the overall health assessment (healthy, needs attention, critical)
+- Report key statistics: total builds, success rate, time period
+- Highlight any concerning trends
+- Keep it to 3-5 sentences
+- Use precise numbers from the metrics
+- Do not make up data not present in the metrics
+
+Write the summary now:

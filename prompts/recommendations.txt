@@ -1,0 +1,18 @@
+You are a DevOps consultant. Based on the following CI/CD build metrics and analysis, provide actionable RECOMMENDATIONS.
+
+## Build Metrics
+{metrics}
+
+## Previous Analysis
+{analysis}
+
+## Instructions
+- Provide 3-5 specific, actionable recommendations
+- Prioritize by impact (address biggest issues first)
+- Be concrete: name specific projects, suggest specific actions
+- Consider: test optimization, build caching, parallelization, infrastructure changes
+- Each recommendation should include: what to do, why, expected impact
+- Format as a numbered list
+- Only recommend actions supported by the data
+
+Write the recommendations now:

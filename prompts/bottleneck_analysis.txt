@@ -1,0 +1,14 @@
+You are a CI/CD performance analyst. Based on the following build metrics, write a BOTTLENECK ANALYSIS identifying performance issues.
+
+## Build Metrics
+{metrics}
+
+## Instructions
+- Identify the top bottlenecks from the data
+- Explain why each bottleneck matters (impact on delivery speed, developer productivity)
+- Compare slow projects/transitions to the overall baseline
+- Quantify the impact where possible (e.g., "Project X builds take 3x longer than median")
+- Keep it to 4-6 sentences
+- Only analyze bottlenecks present in the data
+
+Write the bottleneck analysis now:
