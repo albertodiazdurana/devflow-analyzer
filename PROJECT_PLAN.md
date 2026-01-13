@@ -295,7 +295,7 @@ devflow-analyzer/
 - [x] LLM provider factory working with at least one provider
 - [x] All prompt templates created and tested
 - [x] LLMReporter generates coherent sections
-- [ ] Full report generation works end-to-end
+- [x] Full report generation works end-to-end
 
 ---
 

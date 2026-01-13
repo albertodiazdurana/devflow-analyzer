@@ -164,10 +164,10 @@ def _create_openai(config: ModelConfig, temperature: float):
 
 def _create_ollama(config: ModelConfig, temperature: float):
     """Create Ollama local model."""
-    from langchain_community.chat_models import ChatOllama
-    
+    from langchain_ollama import ChatOllama
+
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    
+
     return ChatOllama(
         model=config.model_id,
         temperature=temperature,
