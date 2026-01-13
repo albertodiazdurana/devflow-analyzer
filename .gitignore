@@ -54,3 +54,7 @@ outputs/reports/*.json
 # OS
 .DS_Store
 Thumbs.db
+
+# agents
+.claude/
+.claude/CLAUDE.md

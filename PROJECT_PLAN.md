@@ -251,9 +251,9 @@ devflow-analyzer/
 **Day 1 Success Criteria:**
 - [x] Environment setup complete
 - [x] TravisTorrent data loads successfully
-- [ ] PM4Py analysis produces valid metrics
-- [ ] `BuildAnalysisResult` outputs clean JSON
-- [ ] DFG visualization saves as PNG
+- [x] PM4Py analysis produces valid metrics
+- [x] `BuildAnalysisResult` outputs clean JSON
+- [x] DFG visualization saves as PNG
 
 ---
 
@@ -292,9 +292,9 @@ devflow-analyzer/
 - Working end-to-end: data → metrics → report
 
 **Day 2 Success Criteria:**
-- [ ] LLM provider factory working with at least one provider
-- [ ] All prompt templates created and tested
-- [ ] LLMReporter generates coherent sections
+- [x] LLM provider factory working with at least one provider
+- [x] All prompt templates created and tested
+- [x] LLMReporter generates coherent sections
 - [ ] Full report generation works end-to-end
 
 ---
