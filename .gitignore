@@ -1,0 +1,53 @@
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# MLflow
+mlruns/
+
+# Data (keep sample, ignore full datasets)
+data/*.csv
+data/*.xes
+!data/sample/
+
+# Outputs
+outputs/figures/*.png
+outputs/reports/*.md
+outputs/reports/*.json
+
+# OS
+.DS_Store
+Thumbs.db
