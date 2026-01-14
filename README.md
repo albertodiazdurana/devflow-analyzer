@@ -178,11 +178,13 @@ devflow-analyzer/
 │   ├── process_analyzer.py # PM4Py analysis
 │   ├── llm_provider.py     # LLM factory
 │   ├── llm_reporter.py     # Report generation
-│   └── agent.py            # ReAct agent with tools
+│   ├── agent.py            # ReAct agent with tools
+│   └── evaluation.py       # MLflow tracking & A/B testing
 ├── prompts/                # Prompt templates
-├── tests/                  # Unit tests
+├── tests/                  # Unit tests (86 tests)
 ├── data/sample/            # Sample datasets
 ├── outputs/                # Generated reports & figures
+├── mlruns/                 # MLflow experiment logs
 └── docs/                   # Documentation & decisions
 ```
 
@@ -215,9 +217,11 @@ DevFlow Analyzer works with TravisTorrent-style CSV data. Required columns:
   - Tools: summary stats, bottlenecks, failures, project comparison
   - Dynamic analysis and investigation
 
-- [ ] **Day 4**: Evaluation Pipeline
-  - MLflow integration
-  - Prompt A/B testing
+- [x] **Day 4**: Evaluation Pipeline
+  - MLflow experiment tracking
+  - ROUGE scores for output quality
+  - Cost tracking per model
+  - A/B testing framework for model comparison
 
 - [ ] **Day 5**: Application & Documentation
   - Streamlit UI
