@@ -34,23 +34,21 @@ DevFlow Analyzer takes CI/CD event logs (build history), performs process mining
 │  - Bottlenecks      │
 └──────────┬──────────┘
            │
-           ▼
-┌─────────────────────┐
-│   LLM Provider      │  (Anthropic, OpenAI, Ollama)
-│   Factory           │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   LLM Reporter      │  (LangChain)
-│  - Prompt templates │
-│  - Report sections  │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   CI/CD Report      │  (Markdown)
-└─────────────────────┘
+     ┌─────┴─────┐
+     │           │
+     ▼           ▼
+┌──────────┐ ┌──────────────┐
+│  Agent   │ │ LLM Reporter │
+│(LangGraph)│ │ (LangChain)  │
+│ - Tools  │ │ - Templates  │
+│ - ReAct  │ │ - Sections   │
+└────┬─────┘ └──────┬───────┘
+     │              │
+     ▼              ▼
+┌──────────┐ ┌─────────────┐
+│ Dynamic  │ │  CI/CD      │
+│ Analysis │ │  Report     │
+└──────────┘ └─────────────┘
 ```
 
 ## Process Mining
@@ -75,6 +73,7 @@ This visualization helps identify patterns such as:
 
 ## Features
 
+- **Agentic analysis** - ReAct-style agent that autonomously investigates CI/CD issues
 - **Provider-agnostic LLM support** - Works with Anthropic Claude, OpenAI GPT, or local Ollama models
 - **Process mining integration** - Uses PM4Py for DFG visualization and metrics
 - **Structured analysis** - Dataclasses for clean JSON serialization
@@ -118,23 +117,35 @@ For Ollama on Windows with WSL, see [docs/ollama-wsl-setup.md](docs/ollama-wsl-s
 
 ## Usage
 
-### Basic Analysis
+### Agent-Based Analysis (Recommended)
 
 ```python
-from src.process_analyzer import ProcessAnalyzer
-from src.llm_reporter import LLMReporter
 from pathlib import Path
+from src.process_analyzer import ProcessAnalyzer
+from src.agent import DevFlowAgent
 
 # Load and analyze CI/CD data
 analyzer = ProcessAnalyzer()
 analyzer.load_data(Path("data/sample/travistorrent_10k.csv"))
 result = analyzer.analyze()
 
-print(f"Analyzed {result.n_builds} builds from {result.n_projects} projects")
-print(f"Success rate: {result.overall_success_rate:.1%}")
+# Create agent and investigate
+agent = DevFlowAgent()  # defaults to gpt-4o-mini
+response = agent.investigate(result, "Which project has the highest failure rate?")
+print(response)
 
-# Generate report
-reporter = LLMReporter(model_key="ollama-llama3")
+# Or run a comprehensive analysis
+response = agent.analyze(result)
+print(response)
+```
+
+### Report Generation
+
+```python
+from src.llm_reporter import LLMReporter
+
+# Generate structured report
+reporter = LLMReporter(model_key="gpt-4o-mini")
 report = reporter.generate_report(result)
 print(report.to_markdown())
 ```
@@ -147,14 +158,16 @@ analyzer.generate_dfg(Path("outputs/figures/dfg.png"))
 
 ### Available Models
 
-| Key | Provider | Model |
-|-----|----------|-------|
-| `claude-sonnet` | Anthropic | Claude Sonnet 4 |
-| `claude-haiku` | Anthropic | Claude Haiku 4 |
-| `gpt-4o` | OpenAI | GPT-4o |
-| `gpt-4o-mini` | OpenAI | GPT-4o Mini |
-| `ollama-llama3` | Ollama | Llama 3 (local) |
-| `ollama-mistral` | Ollama | Mistral (local) |
+| Key | Provider | Model | Tool Calling |
+|-----|----------|-------|--------------|
+| `gpt-4o-mini` | OpenAI | GPT-4o Mini | Yes |
+| `gpt-4o` | OpenAI | GPT-4o | Yes |
+| `claude-sonnet` | Anthropic | Claude Sonnet 4 | Yes |
+| `claude-haiku` | Anthropic | Claude Haiku 4 | Yes |
+| `ollama-llama3` | Ollama | Llama 3 (local) | No |
+| `ollama-mistral` | Ollama | Mistral (local) | No |
+
+**Note:** The agent requires models with tool calling support. For local models, use the reporter instead. See [docs/decisions/DEC-001-default-llm-provider.md](docs/decisions/DEC-001-default-llm-provider.md) for details.
 
 ## Project Structure
 
@@ -164,12 +177,13 @@ devflow-analyzer/
 │   ├── models.py           # Data classes
 │   ├── process_analyzer.py # PM4Py analysis
 │   ├── llm_provider.py     # LLM factory
-│   └── llm_reporter.py     # Report generation
+│   ├── llm_reporter.py     # Report generation
+│   └── agent.py            # ReAct agent with tools
 ├── prompts/                # Prompt templates
 ├── tests/                  # Unit tests
 ├── data/sample/            # Sample datasets
 ├── outputs/                # Generated reports & figures
-└── docs/                   # Documentation
+└── docs/                   # Documentation & decisions
 ```
 
 ## Data Format
@@ -196,9 +210,10 @@ DevFlow Analyzer works with TravisTorrent-style CSV data. Required columns:
   - Prompt templates
   - LLM-powered report generation
 
-- [ ] **Day 3**: Agentic System
-  - ReAct-style agent with tools
-  - Dynamic analysis selection
+- [x] **Day 3**: Agentic System
+  - ReAct-style agent with LangGraph
+  - Tools: summary stats, bottlenecks, failures, project comparison
+  - Dynamic analysis and investigation
 
 - [ ] **Day 4**: Evaluation Pipeline
   - MLflow integration
