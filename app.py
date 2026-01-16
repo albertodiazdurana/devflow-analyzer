@@ -136,17 +136,39 @@ def render_upload_tab():
 
     with st.expander("📖 What data format do I need?", expanded=False):
         st.markdown("""
-        Your CSV file should contain build records with columns like:
+        ### Required Columns
 
-        | Column | Description | Example |
-        |--------|-------------|---------|
-        | `tr_build_id` | Unique build ID | 12345 |
-        | `gh_project_name` | Project name | my-app |
-        | `tr_status` | Build result | passed, failed, errored |
-        | `tr_duration` | How long it took (seconds) | 245 |
-        | `gh_build_started_at` | When it started | 2024-01-15 10:30:00 |
+        Your CSV file **must** have these exact column names:
 
-        **Don't have data?** Click "Load Sample Data" to try with example data!
+        | Column Name | Description | Required |
+        |-------------|-------------|----------|
+        | `tr_build_id` | Unique build identifier | ✅ Yes |
+        | `gh_project_name` | Project/repository name | ✅ Yes |
+        | `tr_status` | Build result | ✅ Yes |
+        | `tr_duration` | Duration in seconds | ✅ Yes |
+        | `gh_build_started_at` | Start timestamp | ✅ Yes |
+        | `gh_lang` | Programming language | Optional |
+        | `tr_log_num_tests_run` | Number of tests run | Optional |
+        | `tr_log_num_tests_failed` | Number of tests failed | Optional |
+
+        ### Status Values
+
+        The `tr_status` column should contain one of:
+        - `passed` - Build succeeded
+        - `failed` - Build failed (test failures)
+        - `errored` - Build errored (infrastructure/config issues)
+        - `canceled` - Build was canceled
+
+        ### Example CSV
+
+        ```csv
+        tr_build_id,gh_project_name,tr_status,tr_duration,gh_build_started_at
+        1001,myorg/myrepo,passed,245,2024-01-15 10:30:00
+        1002,myorg/myrepo,failed,180,2024-01-15 11:00:00
+        1003,myorg/other-repo,errored,45,2024-01-15 11:30:00
+        ```
+
+        **Don't have data?** Click "Load Sample Data" to try with example data, or download the sample CSV to see the format!
         """)
 
     st.markdown("---")
