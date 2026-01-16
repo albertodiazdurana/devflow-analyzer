@@ -2,6 +2,8 @@
 
 An agentic ML system that applies process mining to CI/CD build data, identifies bottlenecks and failure patterns, and generates actionable insights using LLM-powered natural language generation.
 
+**Live Demo:** [devflow-analyzer.streamlit.app](https://devflow-analyzer.streamlit.app/)
+
 ## Overview
 
 DevFlow Analyzer takes CI/CD event logs (build history), performs process mining analysis, and generates comprehensive reports explaining:
@@ -100,20 +102,14 @@ cp .env.example .env
 
 ## Configuration
 
-Edit `.env` to configure LLM providers:
+Edit `.env` to configure the OpenAI provider:
 
 ```bash
-# Anthropic (recommended)
-ANTHROPIC_API_KEY=sk-ant-...
-
-# OpenAI
+# OpenAI (required for agent features)
 OPENAI_API_KEY=sk-...
-
-# Ollama (local, no key needed)
-OLLAMA_BASE_URL=http://localhost:11434
 ```
 
-For Ollama on Windows with WSL, see [docs/ollama-wsl-setup.md](docs/ollama-wsl-setup.md).
+The app uses OpenAI's GPT-4o-mini by default (fast and affordable at $0.15 per 1M tokens).
 
 ## Usage
 
@@ -158,16 +154,12 @@ analyzer.generate_dfg(Path("outputs/figures/dfg.png"))
 
 ### Available Models
 
-| Key | Provider | Model | Tool Calling |
-|-----|----------|-------|--------------|
-| `gpt-4o-mini` | OpenAI | GPT-4o Mini | Yes |
-| `gpt-4o` | OpenAI | GPT-4o | Yes |
-| `claude-sonnet` | Anthropic | Claude Sonnet 4 | Yes |
-| `claude-haiku` | Anthropic | Claude Haiku 4 | Yes |
-| `ollama-llama3` | Ollama | Llama 3 (local) | No |
-| `ollama-mistral` | Ollama | Mistral (local) | No |
+| Key | Provider | Model | Cost (per 1M tokens) |
+|-----|----------|-------|---------------------|
+| `gpt-4o-mini` | OpenAI | GPT-4o Mini | $0.15 input / $0.60 output |
+| `gpt-4o` | OpenAI | GPT-4o | $5.00 input / $15.00 output |
 
-**Note:** The agent requires models with tool calling support. For local models, use the reporter instead. See [docs/decisions/DEC-001-default-llm-provider.md](docs/decisions/DEC-001-default-llm-provider.md) for details.
+**Note:** The app uses OpenAI models which support tool calling required by the ReAct agent. See [docs/decisions/DEC-001-default-llm-provider.md](docs/decisions/DEC-001-default-llm-provider.md) for details.
 
 ## Project Structure
 
@@ -223,10 +215,11 @@ DevFlow Analyzer works with TravisTorrent-style CSV data. Required columns:
   - Cost tracking per model
   - A/B testing framework for model comparison
 
-- [x] **Day 5**: Application & Documentation
+- [x] **Day 5**: Application & Deployment
   - Streamlit UI with 4 tabs (Upload, Metrics, Agent, Evaluation)
   - Demo notebook
-  - Complete documentation
+  - Deployed to Streamlit Community Cloud
+  - Live at [devflow-analyzer.streamlit.app](https://devflow-analyzer.streamlit.app/)
 
 ## Quick Start
 
