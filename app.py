@@ -43,6 +43,47 @@ if "run_history" not in st.session_state:
     st.session_state.run_history = []  # Track agent runs for Evaluation tab
 
 
+def calculate_response_metrics(response: str, output_tokens: int, latency_ms: float) -> dict:
+    """Calculate auto-computed metrics for LLM response evaluation.
+
+    Args:
+        response: The LLM response text
+        output_tokens: Number of output tokens
+        latency_ms: Response latency in milliseconds
+
+    Returns:
+        Dict with calculated metrics
+    """
+    import re
+
+    # Tokens per second (generation speed)
+    tokens_per_second = (output_tokens / latency_ms * 1000) if latency_ms > 0 else 0
+
+    # Response length (character count)
+    response_length = len(response)
+
+    # Count markdown sections (## or ### headers)
+    response_sections = len(re.findall(r'^#{1,3}\s+', response, re.MULTILINE))
+
+    # Detect actionable items (bullet points, numbered lists, "recommend", "should", "suggest")
+    actionable_patterns = [
+        r'^\s*[-*•]\s+',  # Bullet points
+        r'^\s*\d+\.\s+',  # Numbered lists
+        r'\b(recommend|should|suggest|consider|try|implement|add|create|use)\b',  # Action words
+    ]
+    has_actionable_items = any(
+        re.search(pattern, response, re.MULTILINE | re.IGNORECASE)
+        for pattern in actionable_patterns
+    )
+
+    return {
+        "tokens_per_second": round(tokens_per_second, 2),
+        "response_length": response_length,
+        "response_sections": response_sections,
+        "has_actionable_items": has_actionable_items,
+    }
+
+
 def render_sidebar():
     """Render sidebar with configuration options."""
     st.sidebar.title("⚙️ Configuration")
@@ -571,6 +612,9 @@ def render_agent_tab(model_key: str, temperature: float):
                 output_tokens = len(response) // 4
                 cost = compute_cost(model_key, input_tokens, output_tokens)
 
+                # Calculate response metrics
+                response_metrics = calculate_response_metrics(response, output_tokens, timer.elapsed_ms)
+
                 # Save to run history for Evaluation tab
                 import datetime
                 st.session_state.run_history.append({
@@ -584,6 +628,11 @@ def render_agent_tab(model_key: str, temperature: float):
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
                     "response": response,
+                    # Auto-calculated response metrics
+                    "tokens_per_second": response_metrics["tokens_per_second"],
+                    "response_length": response_metrics["response_length"],
+                    "response_sections": response_metrics["response_sections"],
+                    "has_actionable_items": response_metrics["has_actionable_items"],
                 })
 
                 st.markdown("### 📝 Agent Response")
@@ -603,6 +652,9 @@ def render_agent_tab(model_key: str, temperature: float):
             output_tokens = len(response) // 4
             cost = compute_cost(model_key, input_tokens, output_tokens)
 
+            # Calculate response metrics
+            response_metrics = calculate_response_metrics(response, output_tokens, timer.elapsed_ms)
+
             # Save to run history for Evaluation tab
             import datetime
             st.session_state.run_history.append({
@@ -616,6 +668,11 @@ def render_agent_tab(model_key: str, temperature: float):
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "response": response,
+                # Auto-calculated response metrics
+                "tokens_per_second": response_metrics["tokens_per_second"],
+                "response_length": response_metrics["response_length"],
+                "response_sections": response_metrics["response_sections"],
+                "has_actionable_items": response_metrics["has_actionable_items"],
             })
 
             st.markdown("### 📝 Full Analysis Report")
@@ -688,6 +745,10 @@ def render_evaluation_tab():
                 "Temp": run["temperature"],
                 "Latency": f"{run['latency_ms']/1000:.1f}s",
                 "Cost": f"${run['cost_usd']:.4f}",
+                "Tok/s": run.get("tokens_per_second", "N/A"),
+                "Length": run.get("response_length", "N/A"),
+                "Sections": run.get("response_sections", "N/A"),
+                "Actionable": "✓" if run.get("has_actionable_items") else "✗",
                 "Response Preview": response[:100] + "..." if len(response) > 100 else response,
             })
 
@@ -703,6 +764,11 @@ def render_evaluation_tab():
                 "Cost (USD)": run["cost_usd"],
                 "Input Tokens": run["input_tokens"],
                 "Output Tokens": run["output_tokens"],
+                # Auto-calculated response metrics
+                "Tokens/Second": run.get("tokens_per_second", ""),
+                "Response Length": run.get("response_length", ""),
+                "Response Sections": run.get("response_sections", ""),
+                "Has Actionable Items": run.get("has_actionable_items", ""),
                 "Response": response,
             })
 

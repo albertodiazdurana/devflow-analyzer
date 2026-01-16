@@ -437,6 +437,64 @@ devflow-analyzer/
 
 ---
 
+### Day 6: Enhanced Evaluation Metrics (Phase 5 - Refinements)
+
+**Objective:** Add comprehensive metrics to Run History for complete LLM evaluation analysis.
+
+#### Part 1: Auto-Calculated Response Metrics (1 hour)
+- Add `input_tokens` to run history (already calculated, just save it)
+- Add `output_tokens` to run history (already calculated, just save it)
+- Add `tokens_per_second` (output_tokens / latency_ms * 1000)
+- Add `response_length` (character count)
+- Add `response_sections` (count markdown headers)
+- Add `has_actionable_items` (detect recommendations/bullet points)
+
+**Deliverables:**
+- Updated run history data structure in `app.py`
+- Auto-calculated metrics on every agent run
+
+#### Part 2: User Evaluation Interface (1.5 hours)
+- Add expandable evaluation panel after each response
+- Implement `quality_score` (1-5 star rating)
+- Implement `relevance_score` (1-5 slider)
+- Implement `completeness_score` (1-5 slider)
+- Implement `actionability_score` (1-5 slider)
+- Add `user_notes` text input for qualitative feedback
+
+**Deliverables:**
+- Interactive evaluation UI in Agent tab
+- Scores saved to run history
+
+#### Part 3: Experiment Tracking Metadata (1 hour)
+- Add `run_id` (UUID for unique identification)
+- Add `experiment_group` (user-defined tag for grouping related runs)
+- Add `dataset_hash` (hash of input data to ensure comparability)
+- Update CSV export to include all new columns
+
+**Deliverables:**
+- Enhanced run history with full metadata
+- Updated CSV export format
+
+#### Part 4: Evaluation Dashboard Enhancements (1.5 hours)
+- Add quality score comparison across models
+- Add scatter plot: latency vs. quality score
+- Add scatter plot: cost vs. quality score
+- Add grouped statistics by experiment_group
+- Add average scores per model summary
+
+**Deliverables:**
+- Enhanced Evaluation tab with visual comparisons
+- Quality-aware model comparison
+
+**Day 6 Success Criteria:**
+- [ ] All auto-calculated metrics captured on every run
+- [ ] User can rate responses with 4 quality dimensions
+- [ ] Experiment grouping allows comparing related runs
+- [ ] CSV export includes all evaluation columns
+- [ ] Dashboard shows quality vs. cost/latency trade-offs
+
+---
+
 ### Stretch: HuggingFace Fine-tuning (Optional)
 
 **Objective:** Add custom model capability to demonstrate training skills.
@@ -480,6 +538,12 @@ devflow-analyzer/
 - [x] Includes reproducible evaluation pipeline
 - [x] Uses modern ML frameworks
 - [x] Applies to software development domain (CI/CD)
+
+### Evaluation Pipeline (Day 6)
+- [ ] Auto-calculated response metrics (tokens, length, sections)
+- [ ] User quality ratings (4 dimensions + notes)
+- [ ] Experiment grouping and dataset hashing
+- [ ] Quality vs. cost/latency visualizations
 
 ---
 
