@@ -61,17 +61,15 @@ def render_sidebar():
 
     st.sidebar.markdown("---")
 
-    # Model selection
+    # Model selection - OpenAI models only
     st.sidebar.markdown("### 🤖 AI Model Settings")
 
-    models = get_available_models()
-    tool_capable = ["gpt-4o-mini", "gpt-4o", "claude-sonnet", "claude-haiku"]
-    default_idx = models.index("gpt-4o-mini") if "gpt-4o-mini" in models else 0
+    openai_models = ["gpt-4o-mini", "gpt-4o"]
 
     selected_model = st.sidebar.selectbox(
         "LLM Model",
-        models,
-        index=default_idx,
+        openai_models,
+        index=0,  # gpt-4o-mini is default
         help="Choose which AI model to use. GPT-4o-mini is recommended (fast and cheap).",
     )
 
@@ -79,16 +77,13 @@ def render_sidebar():
     with st.sidebar.expander("Which model should I use?"):
         st.markdown("""
         **Recommended:** `gpt-4o-mini`
-        - Fast and affordable
+        - Fast and affordable ($0.15 per 1M input tokens)
         - Good for most analyses
 
-        **Premium:** `gpt-4o` or `claude-sonnet`
+        **Premium:** `gpt-4o`
         - Higher quality responses
         - Better for complex questions
-
-        **Local (free):** `ollama-llama3`
-        - Runs on your machine
-        - ⚠️ Does not support Agent features
+        - More expensive ($5 per 1M input tokens)
         """)
 
     # Temperature
@@ -113,32 +108,16 @@ def render_sidebar():
         **Tip:** Keep it at 0.3 for reliable CI/CD analysis.
         """)
 
-    # Provider status
+    # Provider status - OpenAI only
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🔌 Provider Status")
 
-    with st.sidebar.expander("What are providers?"):
-        st.markdown("""
-        **Providers** are AI services that power the analysis:
+    available, msg = check_provider_available(Provider.OPENAI)
+    status = "🟢 Connected" if available else "🔴 Not available"
+    st.sidebar.markdown(f"**OpenAI:** {status}")
 
-        - **OpenAI**: GPT models (requires API key)
-        - **Anthropic**: Claude models (requires API key)
-        - **Ollama**: Local models (free, runs on your computer)
-
-        🟢 = Connected and ready
-        🔴 = Not available (check API key or service)
-        """)
-
-    providers = [
-        (Provider.OPENAI, "OpenAI"),
-        (Provider.ANTHROPIC, "Anthropic"),
-        (Provider.OLLAMA, "Ollama"),
-    ]
-
-    for provider, name in providers:
-        available, msg = check_provider_available(provider)
-        status = "🟢" if available else "🔴"
-        st.sidebar.markdown(f"{status} {name}")
+    if not available:
+        st.sidebar.warning("OpenAI API key required. Add it in Settings → Secrets.")
 
     return selected_model, temperature
 
@@ -496,16 +475,7 @@ def render_agent_tab(model_key: str, temperature: float):
     # Model info
     st.markdown(f"**Current model:** `{model_key}` | **Temperature:** {temperature}")
 
-    # Check if model supports tools
-    tool_capable = ["gpt-4o-mini", "gpt-4o", "claude-sonnet", "claude-haiku"]
-    if model_key not in tool_capable:
-        st.warning(f"""
-        ⚠️ **{model_key}** does not support tool calling.
-
-        The Agent needs "tool calling" to analyze your data. Please select a supported model
-        from the sidebar (gpt-4o-mini recommended).
-        """)
-        return
+    # All OpenAI models support tools, so no check needed
 
     st.markdown("---")
 
