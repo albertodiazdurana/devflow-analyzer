@@ -223,9 +223,20 @@ DevFlow Analyzer works with TravisTorrent-style CSV data. Required columns:
   - Cost tracking per model
   - A/B testing framework for model comparison
 
-- [ ] **Day 5**: Application & Documentation
-  - Streamlit UI
+- [x] **Day 5**: Application & Documentation
+  - Streamlit UI with 4 tabs (Upload, Metrics, Agent, Evaluation)
+  - Demo notebook
   - Complete documentation
+
+## Quick Start
+
+```bash
+# Run the Streamlit app
+streamlit run app.py
+
+# View MLflow experiments
+mlflow ui --port 5000
+```
 
 ## Testing
 

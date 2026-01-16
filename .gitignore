@@ -4,6 +4,9 @@
 venv/
 env/
 
+# Streamlit secrets (NEVER commit!)
+.streamlit/secrets.toml
+
 # Data
 data/
 
@@ -45,6 +48,8 @@ mlruns/
 data/*.csv
 data/*.xes
 !data/sample/
+data/sample/final-*.csv
+!data/sample/travistorrent_10k.csv
 
 # Outputs
 outputs/figures/*.png
