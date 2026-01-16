@@ -487,11 +487,11 @@ devflow-analyzer/
 - Quality-aware model comparison
 
 **Day 6 Success Criteria:**
-- [ ] All auto-calculated metrics captured on every run
-- [ ] User can rate responses with 4 quality dimensions
-- [ ] Experiment grouping allows comparing related runs
-- [ ] CSV export includes all evaluation columns
-- [ ] Dashboard shows quality vs. cost/latency trade-offs
+- [x] All auto-calculated metrics captured on every run
+- [x] User can rate responses with 4 quality dimensions
+- [x] Experiment grouping allows comparing related runs
+- [x] CSV export includes all evaluation columns
+- [x] Dashboard shows quality vs. cost/latency trade-offs
 
 ---
 
@@ -540,10 +540,10 @@ devflow-analyzer/
 - [x] Applies to software development domain (CI/CD)
 
 ### Evaluation Pipeline (Day 6)
-- [ ] Auto-calculated response metrics (tokens, length, sections)
-- [ ] User quality ratings (4 dimensions + notes)
-- [ ] Experiment grouping and dataset hashing
-- [ ] Quality vs. cost/latency visualizations
+- [x] Auto-calculated response metrics (tokens, length, sections)
+- [x] User quality ratings (4 dimensions + notes)
+- [x] Experiment grouping and dataset hashing
+- [x] Quality vs. cost/latency visualizations
 
 ---
 
