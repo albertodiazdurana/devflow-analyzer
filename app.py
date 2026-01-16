@@ -39,6 +39,8 @@ if "analyzer" not in st.session_state:
     st.session_state.analyzer = None
 if "dfg_path" not in st.session_state:
     st.session_state.dfg_path = None
+if "run_history" not in st.session_state:
+    st.session_state.run_history = []  # Track agent runs for Evaluation tab
 
 
 def render_sidebar():
@@ -304,6 +306,53 @@ def render_metrics_tab():
 
     st.markdown("This dashboard shows key metrics about your CI/CD pipeline health.")
 
+    # DFG Visualization - at the top for visual impact
+    st.subheader("🔄 Process Flow Visualization (DFG)")
+
+    with st.expander("ℹ️ What is a Directly-Follows Graph (DFG)?", expanded=False):
+        st.markdown("""
+        A **Directly-Follows Graph (DFG)** is a process mining visualization that shows how builds transition between states:
+
+        - **Nodes (circles)** = Build statuses (passed, failed, errored, canceled)
+        - **Arrows** = Transitions from one state to the next
+        - **Numbers on arrows** = How often each transition happens
+
+        **How to read it:**
+        - Thick arrows = frequent transitions (more builds follow this path)
+        - `passed → passed` = stable builds, good!
+        - `failed → passed` = recovery from failures
+        - `failed → failed` = repeated failures (needs investigation)
+
+        **What to look for:**
+        - High `passed → passed` count indicates pipeline stability
+        - Many `failed → failed` suggests persistent issues
+        - `errored` states often indicate infrastructure problems
+        """)
+
+    # Show DFG if already generated
+    if st.session_state.dfg_path and st.session_state.dfg_path.exists():
+        st.image(str(st.session_state.dfg_path), caption="Directly-Follows Graph: Build state transitions in your CI/CD pipeline")
+    else:
+        # Offer to generate if not yet created
+        if st.button("🎨 Generate Process Flow Diagram", help="Creates a visual diagram of build state transitions", key="dfg_top"):
+            if st.session_state.analyzer:
+                with st.spinner("Generating visualization..."):
+                    dfg_path = Path("outputs/figures/dfg_streamlit.png")
+                    dfg_path.parent.mkdir(parents=True, exist_ok=True)
+                    st.session_state.analyzer.generate_dfg(dfg_path)
+                    st.session_state.dfg_path = dfg_path
+                    st.rerun()
+
+    # Regenerate button
+    if st.session_state.dfg_path:
+        if st.button("🔄 Regenerate DFG", help="Generate a fresh visualization", key="dfg_regen_top"):
+            if st.session_state.analyzer:
+                with st.spinner("Regenerating..."):
+                    st.session_state.analyzer.generate_dfg(st.session_state.dfg_path)
+                    st.rerun()
+
+    st.markdown("---")
+
     # KPI cards with explanations
     st.subheader("🎯 Key Performance Indicators")
 
@@ -352,7 +401,7 @@ def render_metrics_tab():
 
     st.markdown("---")
 
-    # Two columns: Projects and Risks
+    # Two columns: Projects/Bottlenecks and Risks
     col1, col2 = st.columns(2)
 
     with col1:
@@ -373,17 +422,6 @@ def render_metrics_tab():
         else:
             st.info("No project metrics available.")
 
-    with col2:
-        st.subheader("⚠️ Projects at Risk")
-        st.markdown("Projects with >40% failure+error rate need immediate attention:")
-
-        if result.projects_at_risk:
-            for project in result.projects_at_risk:
-                st.warning(f"🔴 **{project}**")
-            st.markdown("💡 *Tip: Ask the Agent about these projects for recommendations.*")
-        else:
-            st.success("✅ No projects at critical risk level. Great job!")
-
         st.subheader("🐌 Bottlenecks")
         st.markdown("Slow transitions in your pipeline that delay builds:")
 
@@ -401,51 +439,16 @@ def render_metrics_tab():
         else:
             st.success("✅ No significant bottlenecks detected.")
 
-    # DFG Visualization
-    st.markdown("---")
-    st.subheader("🔄 Process Flow Visualization (DFG)")
+    with col2:
+        st.subheader("⚠️ Projects at Risk")
+        st.markdown("Projects with >40% failure+error rate need immediate attention:")
 
-    with st.expander("ℹ️ What is a Directly-Follows Graph (DFG)?", expanded=False):
-        st.markdown("""
-        A **Directly-Follows Graph (DFG)** is a process mining visualization that shows how builds transition between states:
-
-        - **Nodes (circles)** = Build statuses (passed, failed, errored, canceled)
-        - **Arrows** = Transitions from one state to the next
-        - **Numbers on arrows** = How often each transition happens
-
-        **How to read it:**
-        - Thick arrows = frequent transitions (more builds follow this path)
-        - `passed → passed` = stable builds, good!
-        - `failed → passed` = recovery from failures
-        - `failed → failed` = repeated failures (needs investigation)
-
-        **What to look for:**
-        - High `passed → passed` count indicates pipeline stability
-        - Many `failed → failed` suggests persistent issues
-        - `errored` states often indicate infrastructure problems
-        """)
-
-    # Show DFG if already generated
-    if st.session_state.dfg_path and st.session_state.dfg_path.exists():
-        st.image(str(st.session_state.dfg_path), caption="Directly-Follows Graph: Build state transitions in your CI/CD pipeline")
-    else:
-        # Offer to generate if not yet created
-        if st.button("🎨 Generate Process Flow Diagram", help="Creates a visual diagram of build state transitions"):
-            if st.session_state.analyzer:
-                with st.spinner("Generating visualization..."):
-                    dfg_path = Path("outputs/figures/dfg_streamlit.png")
-                    dfg_path.parent.mkdir(parents=True, exist_ok=True)
-                    st.session_state.analyzer.generate_dfg(dfg_path)
-                    st.session_state.dfg_path = dfg_path
-                    st.rerun()
-
-    # Regenerate button
-    if st.session_state.dfg_path:
-        if st.button("🔄 Regenerate DFG", help="Generate a fresh visualization"):
-            if st.session_state.analyzer:
-                with st.spinner("Regenerating..."):
-                    st.session_state.analyzer.generate_dfg(st.session_state.dfg_path)
-                    st.rerun()
+        if result.projects_at_risk:
+            for project in result.projects_at_risk:
+                st.warning(f"🔴 **{project}**")
+            st.markdown("💡 *Tip: Ask the Agent about these projects for recommendations.*")
+        else:
+            st.success("✅ No projects at critical risk level. Great job!")
 
 
 def render_agent_tab(model_key: str, temperature: float):
@@ -564,6 +567,21 @@ def render_agent_tab(model_key: str, temperature: float):
                 output_tokens = len(response) // 4
                 cost = compute_cost(model_key, input_tokens, output_tokens)
 
+                # Save to run history for Evaluation tab
+                import datetime
+                st.session_state.run_history.append({
+                    "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "type": "Question",
+                    "question": question[:50] + "..." if len(question) > 50 else question,
+                    "model": model_key,
+                    "temperature": temperature,
+                    "latency_ms": timer.elapsed_ms,
+                    "cost_usd": cost,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "response_preview": response[:200] + "..." if len(response) > 200 else response,
+                })
+
                 st.markdown("### 📝 Agent Response")
                 st.markdown(response)
 
@@ -581,6 +599,21 @@ def render_agent_tab(model_key: str, temperature: float):
             output_tokens = len(response) // 4
             cost = compute_cost(model_key, input_tokens, output_tokens)
 
+            # Save to run history for Evaluation tab
+            import datetime
+            st.session_state.run_history.append({
+                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "type": "Full Analysis",
+                "question": "Comprehensive CI/CD analysis",
+                "model": model_key,
+                "temperature": temperature,
+                "latency_ms": timer.elapsed_ms,
+                "cost_usd": cost,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "response_preview": response[:200] + "..." if len(response) > 200 else response,
+            })
+
             st.markdown("### 📝 Full Analysis Report")
             st.markdown(response)
 
@@ -591,100 +624,122 @@ def render_evaluation_tab():
     """Render Evaluation Results tab."""
     st.header("📈 Evaluation & Experiments")
 
-    # Introduction
     st.markdown("""
-    This tab shows experiment tracking data from **MLflow**, a tool for tracking machine learning experiments.
-
-    Every time you run an analysis, you can log the results here for later comparison.
+    Track and compare your Agent analyses. Every time you run a query in the **Agent** tab,
+    the results are logged here so you can compare performance across different models and settings.
     """)
 
-    with st.expander("🔬 What is experiment tracking?"):
-        st.markdown("""
-        **Experiment tracking** helps you:
+    # Session Run History - the main feature now
+    st.subheader("📊 Session Run History")
 
-        - **Compare results** from different models or settings
-        - **Reproduce analyses** by recording exactly what was done
-        - **Track costs** and performance over time
-        - **A/B test** different prompts or approaches
-
-        This is especially useful when you want to see if changes to your prompts
-        or model settings actually improve the analysis quality.
-        """)
-
-    st.markdown("---")
-
-    mlruns_path = Path("mlruns")
-
-    if not mlruns_path.exists():
+    if not st.session_state.run_history:
         st.info("""
-        📭 **No experiments recorded yet.**
+        📭 **No runs yet this session.**
 
-        Experiments are logged when you use the evaluation module in code.
-        Try running some analyses to see data appear here!
+        Go to the **Agent** tab and ask some questions! Each analysis will be tracked here
+        so you can compare:
+        - **Latency** - Which model responds faster?
+        - **Cost** - Which model is cheaper?
+        - **Quality** - Compare responses side-by-side
         """)
 
-        with st.expander("How to log experiments"):
-            st.code("""
-from src.evaluation import ExperimentTracker
+        st.markdown("### 💡 Try this:")
+        st.markdown("""
+        1. Go to **Agent** tab
+        2. Ask: "Which projects have the highest failure rates?"
+        3. Come back here to see your run logged
+        4. Change the model in the sidebar and ask again
+        5. Compare the results!
+        """)
+    else:
+        # Summary metrics
+        total_runs = len(st.session_state.run_history)
+        total_cost = sum(r["cost_usd"] for r in st.session_state.run_history)
+        avg_latency = sum(r["latency_ms"] for r in st.session_state.run_history) / total_runs
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Runs", total_runs)
+        col2.metric("Total Cost", f"${total_cost:.4f}")
+        col3.metric("Avg Latency", f"{avg_latency/1000:.1f}s")
+
+        st.markdown("---")
+
+        # Run history table
+        st.markdown("### Run Details")
+
+        # Create DataFrame for display
+        history_data = []
+        for i, run in enumerate(reversed(st.session_state.run_history)):
+            history_data.append({
+                "#": total_runs - i,
+                "Time": run["timestamp"],
+                "Type": run["type"],
+                "Model": run["model"],
+                "Temp": run["temperature"],
+                "Latency": f"{run['latency_ms']/1000:.1f}s",
+                "Cost": f"${run['cost_usd']:.4f}",
+                "Tokens": f"{run['input_tokens']}→{run['output_tokens']}",
+            })
+
+        st.dataframe(pd.DataFrame(history_data), use_container_width=True, hide_index=True)
+
+        # Model comparison if multiple models used
+        models_used = set(r["model"] for r in st.session_state.run_history)
+        if len(models_used) > 1:
+            st.markdown("### 🔄 Model Comparison")
+            st.markdown("You've used multiple models! Here's how they compare:")
+
+            for model in models_used:
+                model_runs = [r for r in st.session_state.run_history if r["model"] == model]
+                avg_latency = sum(r["latency_ms"] for r in model_runs) / len(model_runs)
+                avg_cost = sum(r["cost_usd"] for r in model_runs) / len(model_runs)
+
+                col1, col2, col3 = st.columns([2, 1, 1])
+                col1.markdown(f"**{model}**")
+                col2.metric("Avg Latency", f"{avg_latency/1000:.1f}s", label_visibility="collapsed")
+                col3.metric("Avg Cost", f"${avg_cost:.4f}", label_visibility="collapsed")
+
+        # Clear history button
+        st.markdown("---")
+        if st.button("🗑️ Clear Run History", help="Remove all tracked runs from this session"):
+            st.session_state.run_history = []
+            st.rerun()
+
+    # Advanced: MLflow section (collapsed by default)
+    st.markdown("---")
+    with st.expander("🔬 Advanced: MLflow Experiment Tracking"):
+        st.markdown("""
+        For **persistent** experiment tracking across sessions, use MLflow via Python code.
+        The session history above is cleared when you close the app.
+
+        **To persist experiments:**
+        """)
+
+        st.code("""
+from src.evaluation import ExperimentTracker, Timer, compute_cost
+from src.agent import DevFlowAgent
 
 tracker = ExperimentTracker('my-experiment')
+
 with tracker.start_run('run-name'):
-    tracker.log_params({'model': 'gpt-4o-mini'})
-    tracker.log_metrics({'latency_ms': 1500})
-    tracker.log_artifact(response, 'output.md')
-            """, language="python")
-        return
+    tracker.log_params({'model': 'gpt-4o-mini', 'temperature': 0.3})
 
-    st.markdown("""
-    **To view the full MLflow dashboard**, run this in your terminal:
-    ```bash
-    mlflow ui --port 5000
-    ```
-    Then open [http://localhost:5000](http://localhost:5000) in your browser.
-    """)
+    agent = DevFlowAgent(model_key='gpt-4o-mini')
+    with Timer() as timer:
+        response = agent.analyze(result)
 
-    st.markdown("---")
+    tracker.log_metrics({
+        'latency_ms': timer.elapsed_ms,
+        'cost_usd': compute_cost('gpt-4o-mini', 1000, 500)
+    })
+        """, language="python")
 
-    # List experiments
-    st.subheader("📁 Recorded Experiments")
-
-    experiments = [d for d in mlruns_path.iterdir() if d.is_dir() and d.name != ".trash"]
-
-    if experiments:
-        for exp in experiments:
-            runs = list(exp.glob("*/"))
-            st.markdown(f"**Experiment {exp.name}**: {len(runs)} run(s)")
-    else:
-        st.info("No experiments found yet. Run some analyses with tracking enabled!")
-
-    # Quick metrics from recent runs
-    st.subheader("📊 Recent Run Metrics")
-    st.markdown("Quick view of metrics from recent experiment runs:")
-
-    metrics_found = False
-    for exp in experiments:
-        for run_dir in exp.glob("*/metrics"):
-            if run_dir.exists():
-                metrics = {}
-                for metric_file in run_dir.iterdir():
-                    if metric_file.is_file():
-                        content = metric_file.read_text().strip().split()
-                        if content:
-                            metrics[metric_file.name] = content[-1]  # Last value
-
-                if metrics:
-                    metrics_found = True
-                    run_id = run_dir.parent.name[:8]
-                    st.markdown(f"**Run {run_id}**")
-                    cols = st.columns(len(metrics))
-                    for i, (name, value) in enumerate(metrics.items()):
-                        try:
-                            cols[i].metric(name, f"{float(value):.4f}")
-                        except ValueError:
-                            cols[i].metric(name, value)
-
-    if not metrics_found:
-        st.info("No metrics found in recent runs. Metrics appear after you log them with the ExperimentTracker.")
+        st.markdown("""
+        **View MLflow dashboard:**
+        ```bash
+        mlflow ui --port 5000
+        ```
+        """)
 
 
 def main():
