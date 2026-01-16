@@ -167,6 +167,18 @@ def render_upload_tab():
             use_container_width=True,
             help="Load 10,000 sample builds from real open-source projects to explore the tool.",
         )
+        # Download sample data button
+        sample_path = Path("data/sample/travistorrent_10k.csv")
+        if sample_path.exists():
+            with open(sample_path, "rb") as f:
+                st.download_button(
+                    "⬇️ Download Sample CSV",
+                    data=f,
+                    file_name="travistorrent_10k.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    help="Download the sample dataset to explore locally or use in other tools.",
+                )
 
     # Handle data loading
     if use_sample or uploaded_file:
@@ -542,14 +554,14 @@ def render_agent_tab(model_key: str, temperature: float):
                 st.session_state.run_history.append({
                     "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "type": "Question",
-                    "question": question[:50] + "..." if len(question) > 50 else question,
+                    "question": question,
                     "model": model_key,
                     "temperature": temperature,
                     "latency_ms": timer.elapsed_ms,
                     "cost_usd": cost,
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
-                    "response_preview": response[:200] + "..." if len(response) > 200 else response,
+                    "response": response,
                 })
 
                 st.markdown("### 📝 Agent Response")
@@ -581,7 +593,7 @@ def render_agent_tab(model_key: str, temperature: float):
                 "cost_usd": cost,
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
-                "response_preview": response[:200] + "..." if len(response) > 200 else response,
+                "response": response,
             })
 
             st.markdown("### 📝 Full Analysis Report")
@@ -637,21 +649,53 @@ def render_evaluation_tab():
         # Run history table
         st.markdown("### Run Details")
 
-        # Create DataFrame for display
-        history_data = []
+        # Create DataFrame for display (with preview)
+        display_data = []
+        export_data = []
         for i, run in enumerate(reversed(st.session_state.run_history)):
-            history_data.append({
+            question = run["question"]
+            response = run["response"]
+
+            # Display version (truncated)
+            display_data.append({
                 "#": total_runs - i,
                 "Time": run["timestamp"],
                 "Type": run["type"],
+                "Question": question[:50] + "..." if len(question) > 50 else question,
                 "Model": run["model"],
                 "Temp": run["temperature"],
                 "Latency": f"{run['latency_ms']/1000:.1f}s",
                 "Cost": f"${run['cost_usd']:.4f}",
-                "Tokens": f"{run['input_tokens']}→{run['output_tokens']}",
+                "Response Preview": response[:100] + "..." if len(response) > 100 else response,
             })
 
-        st.dataframe(pd.DataFrame(history_data), use_container_width=True, hide_index=True)
+            # Export version (full data)
+            export_data.append({
+                "#": total_runs - i,
+                "Time": run["timestamp"],
+                "Type": run["type"],
+                "Question": question,
+                "Model": run["model"],
+                "Temperature": run["temperature"],
+                "Latency (s)": run["latency_ms"] / 1000,
+                "Cost (USD)": run["cost_usd"],
+                "Input Tokens": run["input_tokens"],
+                "Output Tokens": run["output_tokens"],
+                "Response": response,
+            })
+
+        st.dataframe(pd.DataFrame(display_data), use_container_width=True, hide_index=True)
+
+        # Download as CSV button (full data)
+        export_df = pd.DataFrame(export_data)
+        csv_data = export_df.to_csv(index=False)
+        st.download_button(
+            "⬇️ Download Run History as CSV",
+            data=csv_data,
+            file_name="devflow_run_history.csv",
+            mime="text/csv",
+            help="Download the full run history including complete responses.",
+        )
 
         # Model comparison if multiple models used
         models_used = set(r["model"] for r in st.session_state.run_history)
