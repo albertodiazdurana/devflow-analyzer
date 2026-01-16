@@ -615,9 +615,14 @@ def render_agent_tab(model_key: str, temperature: float):
                 # Calculate response metrics
                 response_metrics = calculate_response_metrics(response, output_tokens, timer.elapsed_ms)
 
-                # Save to run history for Evaluation tab
+                # Generate unique run ID
                 import datetime
+                import uuid
+                run_id = str(uuid.uuid4())[:8]
+
+                # Save to run history for Evaluation tab
                 st.session_state.run_history.append({
+                    "run_id": run_id,
                     "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "type": "Question",
                     "question": question,
@@ -633,6 +638,12 @@ def render_agent_tab(model_key: str, temperature: float):
                     "response_length": response_metrics["response_length"],
                     "response_sections": response_metrics["response_sections"],
                     "has_actionable_items": response_metrics["has_actionable_items"],
+                    # User evaluation scores (to be filled in Evaluation tab)
+                    "quality_score": None,
+                    "relevance_score": None,
+                    "completeness_score": None,
+                    "actionability_score": None,
+                    "user_notes": "",
                 })
 
                 st.markdown("### 📝 Agent Response")
@@ -655,9 +666,14 @@ def render_agent_tab(model_key: str, temperature: float):
             # Calculate response metrics
             response_metrics = calculate_response_metrics(response, output_tokens, timer.elapsed_ms)
 
-            # Save to run history for Evaluation tab
+            # Generate unique run ID
             import datetime
+            import uuid
+            run_id = str(uuid.uuid4())[:8]
+
+            # Save to run history for Evaluation tab
             st.session_state.run_history.append({
+                "run_id": run_id,
                 "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "type": "Full Analysis",
                 "question": "Comprehensive CI/CD analysis",
@@ -673,6 +689,12 @@ def render_agent_tab(model_key: str, temperature: float):
                 "response_length": response_metrics["response_length"],
                 "response_sections": response_metrics["response_sections"],
                 "has_actionable_items": response_metrics["has_actionable_items"],
+                # User evaluation scores (to be filled in Evaluation tab)
+                "quality_score": None,
+                "relevance_score": None,
+                "completeness_score": None,
+                "actionability_score": None,
+                "user_notes": "",
             })
 
             st.markdown("### 📝 Full Analysis Report")
@@ -735,9 +757,20 @@ def render_evaluation_tab():
             question = run["question"]
             response = run["response"]
 
+            # Calculate average user score if any ratings exist
+            user_scores = [
+                run.get("quality_score"),
+                run.get("relevance_score"),
+                run.get("completeness_score"),
+                run.get("actionability_score"),
+            ]
+            valid_scores = [s for s in user_scores if s is not None]
+            avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else None
+
             # Display version (truncated)
             display_data.append({
                 "#": total_runs - i,
+                "Run ID": run.get("run_id", "N/A"),
                 "Time": run["timestamp"],
                 "Type": run["type"],
                 "Question": question[:50] + "..." if len(question) > 50 else question,
@@ -749,12 +782,14 @@ def render_evaluation_tab():
                 "Length": run.get("response_length", "N/A"),
                 "Sections": run.get("response_sections", "N/A"),
                 "Actionable": "✓" if run.get("has_actionable_items") else "✗",
+                "Avg Rating": f"{avg_score:.1f}" if avg_score else "—",
                 "Response Preview": response[:100] + "..." if len(response) > 100 else response,
             })
 
             # Export version (full data)
             export_data.append({
                 "#": total_runs - i,
+                "Run ID": run.get("run_id", ""),
                 "Time": run["timestamp"],
                 "Type": run["type"],
                 "Question": question,
@@ -769,6 +804,12 @@ def render_evaluation_tab():
                 "Response Length": run.get("response_length", ""),
                 "Response Sections": run.get("response_sections", ""),
                 "Has Actionable Items": run.get("has_actionable_items", ""),
+                # User evaluation scores
+                "Quality Score": run.get("quality_score", ""),
+                "Relevance Score": run.get("relevance_score", ""),
+                "Completeness Score": run.get("completeness_score", ""),
+                "Actionability Score": run.get("actionability_score", ""),
+                "User Notes": run.get("user_notes", ""),
                 "Response": response,
             })
 
@@ -784,6 +825,77 @@ def render_evaluation_tab():
             mime="text/csv",
             help="Download the full run history including complete responses.",
         )
+
+        # User Evaluation Section
+        st.markdown("---")
+        st.markdown("### ⭐ Rate Responses")
+        st.markdown("Evaluate each response to track quality across different models and settings.")
+
+        for i, run in enumerate(reversed(st.session_state.run_history)):
+            run_idx = len(st.session_state.run_history) - 1 - i  # Get actual index in list
+            run_id = run.get("run_id", f"run_{i}")
+            question_preview = run["question"][:40] + "..." if len(run["question"]) > 40 else run["question"]
+
+            with st.expander(f"#{total_runs - i} | {run['model']} | {question_preview}"):
+                # Show response preview
+                st.markdown("**Response preview:**")
+                st.markdown(run["response"][:500] + "..." if len(run["response"]) > 500 else run["response"])
+                st.markdown("---")
+
+                # Current scores display
+                current_quality = run.get("quality_score")
+                current_relevance = run.get("relevance_score")
+                current_completeness = run.get("completeness_score")
+                current_actionability = run.get("actionability_score")
+                current_notes = run.get("user_notes", "")
+
+                # Rating sliders
+                col1, col2 = st.columns(2)
+                with col1:
+                    quality = st.slider(
+                        "Quality (1-5)",
+                        min_value=1, max_value=5,
+                        value=current_quality if current_quality else 3,
+                        key=f"quality_{run_id}",
+                        help="Overall response quality"
+                    )
+                    relevance = st.slider(
+                        "Relevance (1-5)",
+                        min_value=1, max_value=5,
+                        value=current_relevance if current_relevance else 3,
+                        key=f"relevance_{run_id}",
+                        help="How relevant to the question asked"
+                    )
+                with col2:
+                    completeness = st.slider(
+                        "Completeness (1-5)",
+                        min_value=1, max_value=5,
+                        value=current_completeness if current_completeness else 3,
+                        key=f"completeness_{run_id}",
+                        help="How thorough and complete"
+                    )
+                    actionability = st.slider(
+                        "Actionability (1-5)",
+                        min_value=1, max_value=5,
+                        value=current_actionability if current_actionability else 3,
+                        key=f"actionability_{run_id}",
+                        help="How actionable are the recommendations"
+                    )
+
+                notes = st.text_input(
+                    "Notes (optional)",
+                    value=current_notes,
+                    key=f"notes_{run_id}",
+                    placeholder="Any observations about this response..."
+                )
+
+                if st.button("💾 Save Rating", key=f"save_{run_id}"):
+                    st.session_state.run_history[run_idx]["quality_score"] = quality
+                    st.session_state.run_history[run_idx]["relevance_score"] = relevance
+                    st.session_state.run_history[run_idx]["completeness_score"] = completeness
+                    st.session_state.run_history[run_idx]["actionability_score"] = actionability
+                    st.session_state.run_history[run_idx]["user_notes"] = notes
+                    st.success("Rating saved!")
 
         # Model comparison if multiple models used
         models_used = set(r["model"] for r in st.session_state.run_history)
