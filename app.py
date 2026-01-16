@@ -41,6 +41,20 @@ if "dfg_path" not in st.session_state:
     st.session_state.dfg_path = None
 if "run_history" not in st.session_state:
     st.session_state.run_history = []  # Track agent runs for Evaluation tab
+if "experiment_group" not in st.session_state:
+    st.session_state.experiment_group = ""  # Tag for grouping related runs
+if "dataset_hash" not in st.session_state:
+    st.session_state.dataset_hash = None  # Hash of loaded dataset
+
+
+def compute_dataset_hash(result) -> str:
+    """Compute a hash of the dataset for comparability tracking.
+
+    Uses key metrics to create a fingerprint of the loaded data.
+    """
+    import hashlib
+    fingerprint = f"{result.n_builds}_{result.n_projects}_{result.overall_success_rate:.4f}_{result.median_duration_seconds:.2f}"
+    return hashlib.md5(fingerprint.encode()).hexdigest()[:8]
 
 
 def calculate_response_metrics(response: str, output_tokens: int, latency_ms: float) -> dict:
@@ -148,6 +162,22 @@ def render_sidebar():
 
         **Tip:** Keep it at 0.3 for reliable CI/CD analysis.
         """)
+
+    # Experiment group for tagging runs
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🏷️ Experiment Tracking")
+
+    experiment_group = st.sidebar.text_input(
+        "Experiment Group",
+        value=st.session_state.experiment_group,
+        placeholder="e.g., temp_comparison_v1",
+        help="Tag related runs with a group name for easier comparison in the Evaluation tab.",
+    )
+    st.session_state.experiment_group = experiment_group
+
+    # Show dataset hash if data is loaded
+    if st.session_state.dataset_hash:
+        st.sidebar.caption(f"📊 Dataset: `{st.session_state.dataset_hash}`")
 
     # Provider status - OpenAI only
     st.sidebar.markdown("---")
@@ -268,6 +298,9 @@ def render_upload_tab():
             # Store in session state
             st.session_state.analysis_result = result
             st.session_state.analyzer = analyzer
+
+            # Compute dataset hash for experiment tracking
+            st.session_state.dataset_hash = compute_dataset_hash(result)
 
             # Auto-generate DFG visualization
             dfg_path = Path("outputs/figures/dfg_streamlit.png")
@@ -638,6 +671,9 @@ def render_agent_tab(model_key: str, temperature: float):
                     "response_length": response_metrics["response_length"],
                     "response_sections": response_metrics["response_sections"],
                     "has_actionable_items": response_metrics["has_actionable_items"],
+                    # Experiment tracking metadata
+                    "experiment_group": st.session_state.experiment_group,
+                    "dataset_hash": st.session_state.dataset_hash,
                     # User evaluation scores (to be filled in Evaluation tab)
                     "quality_score": None,
                     "relevance_score": None,
@@ -689,6 +725,9 @@ def render_agent_tab(model_key: str, temperature: float):
                 "response_length": response_metrics["response_length"],
                 "response_sections": response_metrics["response_sections"],
                 "has_actionable_items": response_metrics["has_actionable_items"],
+                # Experiment tracking metadata
+                "experiment_group": st.session_state.experiment_group,
+                "dataset_hash": st.session_state.dataset_hash,
                 # User evaluation scores (to be filled in Evaluation tab)
                 "quality_score": None,
                 "relevance_score": None,
@@ -768,9 +807,11 @@ def render_evaluation_tab():
             avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else None
 
             # Display version (truncated)
+            exp_group = run.get("experiment_group", "")
             display_data.append({
                 "#": total_runs - i,
                 "Run ID": run.get("run_id", "N/A"),
+                "Group": exp_group if exp_group else "—",
                 "Time": run["timestamp"],
                 "Type": run["type"],
                 "Question": question[:50] + "..." if len(question) > 50 else question,
@@ -778,18 +819,16 @@ def render_evaluation_tab():
                 "Temp": run["temperature"],
                 "Latency": f"{run['latency_ms']/1000:.1f}s",
                 "Cost": f"${run['cost_usd']:.4f}",
-                "Tok/s": run.get("tokens_per_second", "N/A"),
-                "Length": run.get("response_length", "N/A"),
-                "Sections": run.get("response_sections", "N/A"),
-                "Actionable": "✓" if run.get("has_actionable_items") else "✗",
                 "Avg Rating": f"{avg_score:.1f}" if avg_score else "—",
-                "Response Preview": response[:100] + "..." if len(response) > 100 else response,
+                "Response Preview": response[:80] + "..." if len(response) > 80 else response,
             })
 
             # Export version (full data)
             export_data.append({
                 "#": total_runs - i,
                 "Run ID": run.get("run_id", ""),
+                "Experiment Group": run.get("experiment_group", ""),
+                "Dataset Hash": run.get("dataset_hash", ""),
                 "Time": run["timestamp"],
                 "Type": run["type"],
                 "Question": question,
@@ -897,21 +936,139 @@ def render_evaluation_tab():
                     st.session_state.run_history[run_idx]["user_notes"] = notes
                     st.success("Rating saved!")
 
-        # Model comparison if multiple models used
-        models_used = set(r["model"] for r in st.session_state.run_history)
-        if len(models_used) > 1:
-            st.markdown("### 🔄 Model Comparison")
-            st.markdown("You've used multiple models! Here's how they compare:")
+        # Visualizations section - only show if we have rated runs
+        rated_runs = [r for r in st.session_state.run_history if r.get("quality_score") is not None]
+        if rated_runs:
+            st.markdown("---")
+            st.markdown("### 📊 Quality Analysis")
 
+            # Prepare data for charts
+            chart_data = []
+            for run in rated_runs:
+                scores = [
+                    run.get("quality_score"),
+                    run.get("relevance_score"),
+                    run.get("completeness_score"),
+                    run.get("actionability_score"),
+                ]
+                valid_scores = [s for s in scores if s is not None]
+                avg_quality = sum(valid_scores) / len(valid_scores) if valid_scores else 0
+                chart_data.append({
+                    "Model": run["model"],
+                    "Temperature": run["temperature"],
+                    "Latency (s)": run["latency_ms"] / 1000,
+                    "Cost ($)": run["cost_usd"],
+                    "Avg Quality": avg_quality,
+                    "Group": run.get("experiment_group", "") or "ungrouped",
+                })
+
+            chart_df = pd.DataFrame(chart_data)
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("**Quality vs Latency**")
+                st.scatter_chart(
+                    chart_df,
+                    x="Latency (s)",
+                    y="Avg Quality",
+                    color="Model",
+                    size=100,
+                )
+
+            with col2:
+                st.markdown("**Quality vs Cost**")
+                st.scatter_chart(
+                    chart_df,
+                    x="Cost ($)",
+                    y="Avg Quality",
+                    color="Model",
+                    size=100,
+                )
+
+            # Model comparison with quality scores
+            st.markdown("### 🔄 Model Comparison (with Quality)")
+            models_used = set(r["model"] for r in st.session_state.run_history)
+
+            comparison_data = []
             for model in models_used:
                 model_runs = [r for r in st.session_state.run_history if r["model"] == model]
+                rated_model_runs = [r for r in model_runs if r.get("quality_score") is not None]
+
                 avg_latency = sum(r["latency_ms"] for r in model_runs) / len(model_runs)
                 avg_cost = sum(r["cost_usd"] for r in model_runs) / len(model_runs)
 
-                col1, col2, col3 = st.columns([2, 1, 1])
-                col1.markdown(f"**{model}**")
-                col2.metric("Avg Latency", f"{avg_latency/1000:.1f}s", label_visibility="collapsed")
-                col3.metric("Avg Cost", f"${avg_cost:.4f}", label_visibility="collapsed")
+                if rated_model_runs:
+                    quality_scores = []
+                    for r in rated_model_runs:
+                        scores = [r.get("quality_score"), r.get("relevance_score"),
+                                  r.get("completeness_score"), r.get("actionability_score")]
+                        valid = [s for s in scores if s is not None]
+                        if valid:
+                            quality_scores.append(sum(valid) / len(valid))
+                    avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else None
+                else:
+                    avg_quality = None
+
+                comparison_data.append({
+                    "Model": model,
+                    "Runs": len(model_runs),
+                    "Rated": len(rated_model_runs),
+                    "Avg Latency": f"{avg_latency/1000:.1f}s",
+                    "Avg Cost": f"${avg_cost:.4f}",
+                    "Avg Quality": f"{avg_quality:.1f}/5" if avg_quality else "—",
+                })
+
+            st.dataframe(pd.DataFrame(comparison_data), use_container_width=True, hide_index=True)
+
+            # Group comparison if experiment groups exist
+            groups_used = set(r.get("experiment_group", "") for r in st.session_state.run_history)
+            groups_used = {g for g in groups_used if g}  # Remove empty groups
+            if groups_used:
+                st.markdown("### 🏷️ Experiment Group Comparison")
+                group_data = []
+                for group in sorted(groups_used):
+                    group_runs = [r for r in st.session_state.run_history if r.get("experiment_group") == group]
+                    rated_group_runs = [r for r in group_runs if r.get("quality_score") is not None]
+
+                    if rated_group_runs:
+                        quality_scores = []
+                        for r in rated_group_runs:
+                            scores = [r.get("quality_score"), r.get("relevance_score"),
+                                      r.get("completeness_score"), r.get("actionability_score")]
+                            valid = [s for s in scores if s is not None]
+                            if valid:
+                                quality_scores.append(sum(valid) / len(valid))
+                        avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else None
+                    else:
+                        avg_quality = None
+
+                    group_data.append({
+                        "Group": group,
+                        "Runs": len(group_runs),
+                        "Rated": len(rated_group_runs),
+                        "Models": ", ".join(set(r["model"] for r in group_runs)),
+                        "Avg Quality": f"{avg_quality:.1f}/5" if avg_quality else "—",
+                    })
+                st.dataframe(pd.DataFrame(group_data), use_container_width=True, hide_index=True)
+
+        else:
+            # Simple model comparison if no ratings yet
+            models_used = set(r["model"] for r in st.session_state.run_history)
+            if len(models_used) > 1:
+                st.markdown("---")
+                st.markdown("### 🔄 Model Comparison")
+                st.markdown("You've used multiple models! Rate some responses to see quality comparisons.")
+
+                for model in models_used:
+                    model_runs = [r for r in st.session_state.run_history if r["model"] == model]
+                    avg_latency = sum(r["latency_ms"] for r in model_runs) / len(model_runs)
+                    avg_cost = sum(r["cost_usd"] for r in model_runs) / len(model_runs)
+
+                    col1, col2, col3 = st.columns([2, 1, 1])
+                    col1.markdown(f"**{model}**")
+                    col2.metric("Avg Latency", f"{avg_latency/1000:.1f}s", label_visibility="collapsed")
+                    col3.metric("Avg Cost", f"${avg_cost:.4f}", label_visibility="collapsed")
 
         # Clear history button
         st.markdown("---")
