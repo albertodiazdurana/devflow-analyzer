@@ -165,19 +165,28 @@ def render_sidebar():
 
     # Experiment group for tagging runs
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🏷️ Experiment Tracking")
+    st.sidebar.markdown("### 🧪 A/B Testing")
+
+    st.sidebar.markdown("""
+    <small>Compare different configurations by labeling your runs:</small>
+    """, unsafe_allow_html=True)
 
     experiment_group = st.sidebar.text_input(
-        "Experiment Group",
+        "Label this run",
         value=st.session_state.experiment_group,
-        placeholder="e.g., temp_comparison_v1",
-        help="Tag related runs with a group name for easier comparison in the Evaluation tab.",
+        placeholder="e.g., gpt4o-mini-test",
+        help="Give your runs a label so you can compare them in the Evaluation tab. Example: run queries with 'baseline', then change settings and run with 'new-config' to compare.",
     )
     st.session_state.experiment_group = experiment_group
 
+    if experiment_group:
+        st.sidebar.success(f"✓ Runs will be tagged: **{experiment_group}**")
+    else:
+        st.sidebar.caption("💡 Leave blank for one-off queries")
+
     # Show dataset hash if data is loaded
     if st.session_state.dataset_hash:
-        st.sidebar.caption(f"📊 Dataset: `{st.session_state.dataset_hash}`")
+        st.sidebar.caption(f"📊 Data fingerprint: `{st.session_state.dataset_hash[:8]}...`")
 
     # Provider status - OpenAI only
     st.sidebar.markdown("---")
@@ -747,31 +756,27 @@ def render_evaluation_tab():
     st.header("📈 Evaluation & Experiments")
 
     st.markdown("""
-    Track and compare your Agent analyses. Every time you run a query in the **Agent** tab,
-    the results are logged here so you can compare performance across different models and settings.
+    **Compare Agent runs side-by-side.** Every query you run in the Agent tab is logged here
+    with its cost, speed, and response quality.
     """)
 
     # Session Run History - the main feature now
     st.subheader("📊 Session Run History")
 
     if not st.session_state.run_history:
-        st.info("""
-        📭 **No runs yet this session.**
+        st.info("📭 **No runs yet.** Go to the **Agent** tab and ask a question to get started.")
 
-        Go to the **Agent** tab and ask some questions! Each analysis will be tracked here
-        so you can compare:
-        - **Latency** - Which model responds faster?
-        - **Cost** - Which model is cheaper?
-        - **Quality** - Compare responses side-by-side
-        """)
-
-        st.markdown("### 💡 Try this:")
+        st.markdown("### 🧪 How to Compare Models")
         st.markdown("""
-        1. Go to **Agent** tab
-        2. Ask: "Which projects have the highest failure rates?"
-        3. Come back here to see your run logged
-        4. Change the model in the sidebar and ask again
-        5. Compare the results!
+        | Step | Action |
+        |------|--------|
+        | 1 | Go to **Agent** tab |
+        | 2 | Set sidebar label to `gpt4o-mini` |
+        | 3 | Ask: *"Which projects fail most often?"* |
+        | 4 | Change model to **GPT-4o** in sidebar |
+        | 5 | Set label to `gpt4o` |
+        | 6 | Ask the **same question** again |
+        | 7 | Return here to compare cost, speed, and quality |
         """)
     else:
         # Summary metrics
@@ -811,7 +816,7 @@ def render_evaluation_tab():
             display_data.append({
                 "#": total_runs - i,
                 "Run ID": run.get("run_id", "N/A"),
-                "Group": exp_group if exp_group else "—",
+                "Label": exp_group if exp_group else "—",
                 "Time": run["timestamp"],
                 "Type": run["type"],
                 "Question": question[:50] + "..." if len(question) > 50 else question,
@@ -959,7 +964,7 @@ def render_evaluation_tab():
                     "Latency (s)": run["latency_ms"] / 1000,
                     "Cost ($)": run["cost_usd"],
                     "Avg Quality": avg_quality,
-                    "Group": run.get("experiment_group", "") or "ungrouped",
+                    "Label": run.get("experiment_group", "") or "unlabeled",
                 })
 
             chart_df = pd.DataFrame(chart_data)
@@ -1025,7 +1030,8 @@ def render_evaluation_tab():
             groups_used = set(r.get("experiment_group", "") for r in st.session_state.run_history)
             groups_used = {g for g in groups_used if g}  # Remove empty groups
             if groups_used:
-                st.markdown("### 🏷️ Experiment Group Comparison")
+                st.markdown("### 🏷️ Compare by Label")
+                st.caption("Runs grouped by the label you set in the sidebar")
                 group_data = []
                 for group in sorted(groups_used):
                     group_runs = [r for r in st.session_state.run_history if r.get("experiment_group") == group]
@@ -1044,7 +1050,7 @@ def render_evaluation_tab():
                         avg_quality = None
 
                     group_data.append({
-                        "Group": group,
+                        "Label": group,
                         "Runs": len(group_runs),
                         "Rated": len(rated_group_runs),
                         "Models": ", ".join(set(r["model"] for r in group_runs)),
