@@ -76,10 +76,10 @@ This visualization helps identify patterns such as:
 ## Features
 
 - **Agentic analysis** - ReAct-style agent that autonomously investigates CI/CD issues
-- **Provider-agnostic LLM support** - Works with Anthropic Claude, OpenAI GPT, or local Ollama models
+- **OpenAI-powered** - Uses GPT-4o-mini (fast, affordable) or GPT-4o for advanced analysis
 - **Process mining integration** - Uses PM4Py for DFG visualization and metrics
+- **A/B testing** - Compare model configurations with labeled runs and quality ratings
 - **Structured analysis** - Dataclasses for clean JSON serialization
-- **Configurable prompts** - Easy to customize report generation
 
 ## Installation
 
@@ -221,10 +221,10 @@ DevFlow Analyzer works with TravisTorrent-style CSV data. Required columns:
   - Deployed to Streamlit Community Cloud
   - Live at [devflow-analyzer.streamlit.app](https://devflow-analyzer.streamlit.app/)
 
-- [x] **Day 6**: Enhanced Evaluation Metrics
+- [x] **Day 6**: Enhanced Evaluation & A/B Testing
   - Auto-calculated response metrics (tokens/sec, length, sections, actionability)
   - User evaluation interface (quality, relevance, completeness, actionability ratings)
-  - Experiment tracking with group tags and dataset hashing
+  - A/B testing with run labels and data fingerprints for valid comparisons
   - Quality vs cost/latency scatter plots and model comparison dashboards
 
 ## Quick Start
