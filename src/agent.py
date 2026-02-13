@@ -6,16 +6,26 @@ from langgraph.prebuilt import create_react_agent
 
 from .models import BuildAnalysisResult
 from .llm_provider import create_llm
+from .vector_store import DevFlowVectorStore
 
 
 # Global state to hold analysis result for tools
 _current_analysis: Optional[BuildAnalysisResult] = None
+
+# Global state to hold vector store for history tool
+_vector_store: Optional[DevFlowVectorStore] = None
 
 
 def set_analysis_context(analysis: BuildAnalysisResult) -> None:
     """Set the analysis result for tools to access."""
     global _current_analysis
     _current_analysis = analysis
+
+
+def set_vector_store(store: Optional[DevFlowVectorStore]) -> None:
+    """Set the vector store for historical search tool."""
+    global _vector_store
+    _vector_store = store
 
 
 @tool
@@ -134,6 +144,47 @@ def get_summary_stats() -> str:
     return result.to_llm_context()
 
 
+@tool
+def search_historical_analyses(query: str) -> str:
+    """Search historical CI/CD analyses for relevant past results.
+
+    Use this to find patterns across previous analysis runs,
+    compare current results to historical baselines, or
+    retrieve past recommendations for similar issues.
+
+    Args:
+        query: Natural language description of what to search for.
+              Examples: "projects with high failure rates",
+                       "slow build bottlenecks", "test flakiness patterns"
+
+    Returns:
+        Relevant historical analysis excerpts with dates and project context.
+    """
+    if _vector_store is None:
+        return "No historical data available. This is the first analysis."
+
+    if _vector_store.count == 0:
+        return "No historical analyses stored yet."
+
+    results = _vector_store.search_similar(query, k=3)
+
+    if not results:
+        return "No relevant historical analyses found."
+
+    sections = []
+    for i, r in enumerate(results, 1):
+        meta = r["metadata"]
+        sections.append(
+            f"### Historical Analysis {i}\n"
+            f"**Project:** {meta.get('project', 'unknown')} | "
+            f"**Date:** {meta.get('analysis_date', 'unknown')} | "
+            f"**Success Rate:** {meta.get('success_rate', 'N/A')}\n\n"
+            f"{r['content']}\n"
+        )
+
+    return "\n---\n".join(sections)
+
+
 # System prompt for the agent
 SYSTEM_PROMPT = """You are a CI/CD analytics expert. Your task is to analyze build data and provide actionable insights.
 
@@ -142,7 +193,8 @@ When analyzing CI/CD data:
 2. Investigate bottlenecks and slow builds
 3. Analyze failure patterns and identify problematic projects
 4. Compare projects to find outliers
-5. Provide specific, actionable recommendations
+5. If historical data is available, search for similar past analyses to identify trends
+6. Provide specific, actionable recommendations
 
 Focus on the most impactful findings and prioritize your recommendations."""
 
@@ -150,16 +202,26 @@ Focus on the most impactful findings and prioritize your recommendations."""
 class DevFlowAgent:
     """ReAct agent for CI/CD analysis."""
 
-    def __init__(self, model_key: str = "gpt-4o-mini", temperature: float = 0.3):
+    def __init__(
+        self,
+        model_key: str = "gpt-4o-mini",
+        temperature: float = 0.3,
+        vector_store: Optional[DevFlowVectorStore] = None,
+    ):
         """Initialize agent with specified model.
 
         Args:
             model_key: Key from AVAILABLE_MODELS
             temperature: Sampling temperature (lower = more focused)
+            vector_store: Optional vector store for historical analysis persistence
         """
         self.model_key = model_key
         self.temperature = temperature
+        self.vector_store = vector_store
         self._agent = None
+
+        # Set global vector store for the search tool
+        set_vector_store(vector_store)
 
     def _create_agent(self):
         """Create the ReAct agent using langgraph."""
@@ -170,6 +232,7 @@ class DevFlowAgent:
             analyze_bottlenecks,
             analyze_failures,
             compare_projects,
+            search_historical_analyses,
         ]
 
         # langgraph's create_react_agent returns a compiled graph
@@ -207,6 +270,14 @@ Focus on the most impactful findings and prioritize your recommendations."""
 
         # langgraph uses messages format
         result = self.agent.invoke({"messages": [("user", task)]})
+
+        # Auto-store analysis in vector store if available
+        if self.vector_store is not None:
+            self.vector_store.store_analysis(
+                analysis_result,
+                model_used=self.model_key,
+                temperature=self.temperature,
+            )
 
         # Extract final message content
         if result.get("messages"):

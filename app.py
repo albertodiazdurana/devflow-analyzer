@@ -22,6 +22,7 @@ from src.process_analyzer import ProcessAnalyzer
 from src.agent import DevFlowAgent
 from src.llm_provider import get_available_models, check_provider_available, Provider
 from src.evaluation import ExperimentTracker, Timer, compute_cost
+from src.vector_store import DevFlowVectorStore
 
 
 # Page configuration
@@ -45,6 +46,10 @@ if "experiment_group" not in st.session_state:
     st.session_state.experiment_group = ""  # Tag for grouping related runs
 if "dataset_hash" not in st.session_state:
     st.session_state.dataset_hash = None  # Hash of loaded dataset
+if "history_enabled" not in st.session_state:
+    st.session_state.history_enabled = False
+if "vector_store" not in st.session_state:
+    st.session_state.vector_store = None
 
 
 def compute_dataset_hash(result) -> str:
@@ -187,6 +192,30 @@ def render_sidebar():
     # Show dataset hash if data is loaded
     if st.session_state.dataset_hash:
         st.sidebar.caption(f"📊 Data fingerprint: `{st.session_state.dataset_hash[:8]}...`")
+
+    # Historical Analysis toggle
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🗄️ Historical Analysis")
+
+    history_enabled = st.sidebar.toggle(
+        "Enable Historical Analysis",
+        value=st.session_state.history_enabled,
+        help="Store analyses in a vector database so the agent can compare with past results.",
+    )
+
+    if history_enabled != st.session_state.history_enabled:
+        st.session_state.history_enabled = history_enabled
+        if history_enabled:
+            st.session_state.vector_store = DevFlowVectorStore()
+        else:
+            st.session_state.vector_store = None
+
+    if history_enabled:
+        store = st.session_state.vector_store
+        if store is not None:
+            st.sidebar.success(f"✓ {store.count} stored analyses")
+        else:
+            st.sidebar.warning("Vector store not initialized")
 
     # Provider status - OpenAI only
     st.sidebar.markdown("---")
@@ -580,6 +609,7 @@ def render_agent_tab(model_key: str, temperature: float):
            - Bottleneck analysis tool
            - Failure pattern tool
            - Project comparison tool
+           - Historical analysis search (when enabled in sidebar)
         3. **Synthesizes the results** into a coherent answer
         4. **Provides recommendations** based on what it found
 
@@ -644,7 +674,11 @@ def render_agent_tab(model_key: str, temperature: float):
             st.warning("Please enter a question first!")
         else:
             with st.spinner("🤖 Agent is investigating your question... This usually takes 5-15 seconds."):
-                agent = DevFlowAgent(model_key=model_key, temperature=temperature)
+                agent = DevFlowAgent(
+                    model_key=model_key,
+                    temperature=temperature,
+                    vector_store=st.session_state.vector_store,
+                )
 
                 with Timer() as timer:
                     response = agent.investigate(result, question)
@@ -698,7 +732,11 @@ def render_agent_tab(model_key: str, temperature: float):
 
     if full_analysis_btn:
         with st.spinner("🤖 Agent is performing comprehensive analysis... This may take 30-60 seconds."):
-            agent = DevFlowAgent(model_key=model_key, temperature=temperature)
+            agent = DevFlowAgent(
+                model_key=model_key,
+                temperature=temperature,
+                vector_store=st.session_state.vector_store,
+            )
 
             with Timer() as timer:
                 response = agent.analyze(result)
@@ -749,6 +787,53 @@ def render_agent_tab(model_key: str, temperature: float):
             st.markdown(response)
 
             st.caption(f"⏱️ Completed in {timer.elapsed_ms/1000:.1f} seconds | 💰 Estimated cost: ${cost:.4f}")
+
+    # Analysis History section (only when vector store is enabled)
+    if st.session_state.vector_store is not None:
+        st.markdown("---")
+        with st.expander("🗄️ Analysis History", expanded=False):
+            store = st.session_state.vector_store
+
+            if store.count == 0:
+                st.info("No stored analyses yet. Run a Full Analysis with history enabled to start building your history.")
+            else:
+                st.markdown(f"**{store.count}** analyses stored.")
+
+                # Semantic search
+                search_query = st.text_input(
+                    "Search history:",
+                    placeholder="e.g., high failure rate, slow builds, flaky tests",
+                    help="Search past analyses using natural language.",
+                    key="history_search",
+                )
+
+                if search_query:
+                    with st.spinner("Searching..."):
+                        results = store.search_similar(search_query, k=5)
+                    if results:
+                        for i, r in enumerate(results, 1):
+                            meta = r["metadata"]
+                            st.markdown(
+                                f"**{i}. {meta.get('project', 'unknown')}** "
+                                f"({meta.get('analysis_date', 'unknown')}) — "
+                                f"Success: {meta.get('success_rate', 'N/A'):.0%}, "
+                                f"{meta.get('n_builds', '?')} builds"
+                            )
+                            st.caption(r["content"][:300] + "..." if len(r["content"]) > 300 else r["content"])
+                    else:
+                        st.info("No matching analyses found.")
+                else:
+                    # Show recent history
+                    history = store.get_history(limit=10)
+                    for entry in history:
+                        meta = entry["metadata"]
+                        st.markdown(
+                            f"- **{meta.get('project', 'unknown')}** "
+                            f"({meta.get('analysis_date', 'unknown')}) — "
+                            f"Success: {meta.get('success_rate', 'N/A'):.0%}, "
+                            f"{meta.get('n_builds', '?')} builds, "
+                            f"model: {meta.get('model_used', 'unknown')}"
+                        )
 
 
 def render_evaluation_tab():
