@@ -36,21 +36,21 @@ DevFlow Analyzer takes CI/CD event logs (build history), performs process mining
 │  - Bottlenecks      │
 └──────────┬──────────┘
            │
-     ┌─────┴─────┐
-     │           │
-     ▼           ▼
-┌──────────┐ ┌──────────────┐
-│  Agent   │ │ LLM Reporter │
-│(LangGraph)│ │ (LangChain)  │
-│ - Tools  │ │ - Templates  │
-│ - ReAct  │ │ - Sections   │
-└────┬─────┘ └──────┬───────┘
-     │              │
-     ▼              ▼
-┌──────────┐ ┌─────────────┐
-│ Dynamic  │ │  CI/CD      │
-│ Analysis │ │  Report     │
-└──────────┘ └─────────────┘
+     ┌─────┼─────────────┐
+     │     │             │
+     ▼     ▼             ▼
+┌──────────┐ ┌────────────┐ ┌──────────────┐
+│  Agent   │ │Vector Store│ │ LLM Reporter │
+│(LangGraph)│ │ (ChromaDB) │ │ (LangChain)  │
+│ - Tools  │ │ - Embed    │ │ - Templates  │
+│ - ReAct  │ │ - Search   │ │ - Sections   │
+└────┬─────┘ └─────┬──────┘ └──────┬───────┘
+     │       ◄─────┘               │
+     ▼                             ▼
+┌──────────┐              ┌─────────────┐
+│ Dynamic  │              │  CI/CD      │
+│ Analysis │              │  Report     │
+└──────────┘              └─────────────┘
 ```
 
 ## Process Mining
@@ -76,6 +76,7 @@ This visualization helps identify patterns such as:
 ## Features
 
 - **Agentic analysis** - ReAct-style agent that autonomously investigates CI/CD issues
+- **Historical analysis** - ChromaDB vector store with semantic search across past analyses
 - **OpenAI-powered** - Uses GPT-4o-mini (fast, affordable) or GPT-4o for advanced analysis
 - **Process mining integration** - Uses PM4Py for DFG visualization and metrics
 - **A/B testing** - Compare model configurations with labeled runs and quality ratings
@@ -171,9 +172,10 @@ devflow-analyzer/
 │   ├── llm_provider.py     # LLM factory
 │   ├── llm_reporter.py     # Report generation
 │   ├── agent.py            # ReAct agent with tools
+│   ├── vector_store.py     # ChromaDB vector store for history
 │   └── evaluation.py       # MLflow tracking & A/B testing
 ├── prompts/                # Prompt templates
-├── tests/                  # Unit tests (86 tests)
+├── tests/                  # Unit tests (114 tests)
 ├── data/sample/            # Sample datasets
 ├── outputs/                # Generated reports & figures
 ├── mlruns/                 # MLflow experiment logs
@@ -226,6 +228,17 @@ DevFlow Analyzer works with TravisTorrent-style CSV data. Required columns:
   - User evaluation interface (quality, relevance, completeness, actionability ratings)
   - A/B testing with run labels and data fingerprints for valid comparisons
   - Quality vs cost/latency scatter plots and model comparison dashboards
+
+### Epoch 2: Advanced Features
+
+- [x] **Sprint A**: Vector Database & Historical Analysis
+  - ChromaDB vector store with OpenAI embeddings for analysis persistence
+  - Agent tool for searching historical analyses with semantic similarity
+  - Streamlit UI: sidebar toggle, Analysis History expander with search
+  - Auto-stores analyses for trend comparison across runs
+
+- [ ] **Sprint B**: Multi-Agent Orchestration (LangGraph supervisor)
+- [ ] **Sprint C**: REST API (FastAPI) + Docker
 
 ## Quick Start
 
